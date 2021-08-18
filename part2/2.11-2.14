@@ -1,0 +1,78 @@
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
+import Filter from './components/Filter'
+import Persons from './components/Persons'
+
+const App = () => {
+  const [country, setCountry] = useState([])
+  const [newNote, setNewNote] = useState('')
+  const [showAll, setShowAll] = useState(true)
+  const [newFilter, setNewFilter] = useState('') 
+
+  const handleFilterChange = (event) => {
+    setNewFilter(event.target.value)
+  }
+
+  const filterToShow = country.filter(country => country.name.toLowerCase().includes(newFilter.toLowerCase()))
+
+  useEffect(() => {
+    console.log('effect')
+    axios
+      .get('https://restcountries.eu/rest/v2/all')
+      .then(response => {
+        console.log('promise fulfilled')
+        setCountry(response.data)
+      })
+  }, [])
+  console.log('render', country.length, 'countries')
+
+  return (
+    <div>
+      <Filter filter = {newFilter} filterHandler = {handleFilterChange} />
+      <h1>Countries</h1>
+      <Persons personList = {filterToShow} clickHandler = {setNewFilter}/> 
+    </div>
+  )
+}
+
+export default App 
+
+import React from 'react'
+
+const Filter = ({ filter, filterHandler }) => {
+  return (
+    <div>filter shown with: <input value = {filter} onChange = {filterHandler}/></div>
+  )
+}
+
+export default Filter
+
+import React from 'react'
+
+const Persons = ({ personList, clickHandler}) => {
+    
+    const chunky = (event) => {
+        clickHandler(event.currentTarget.value)
+      }
+
+    if (personList.length > 10) {
+        return (
+            <ul>Too many matches, specify another filter</ul>
+        )
+    }
+    if (personList.length == 1) {
+        return (
+            <ul>yoshi</ul>
+        )
+    }    
+    return (
+        <ul>
+            {personList.map(person => 
+            <li key = {person.name}>
+            {person.name} {person.number} <button value = {person.name} onClick = {chunky}>show</button>
+            </li>)}
+        </ul>
+        )
+}
+
+export default Persons
