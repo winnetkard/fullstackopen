@@ -1,0 +1,157 @@
+const express = require('express')
+const app = express()
+const cors = require('cors')
+const { useReducer } = require('react')
+
+app.use(cors())
+app.use(express.json())
+
+const requestLogger = (request, response, next) => {
+  console.log('Method:', request.method)
+  console.log('Path:  ', request.path)
+  console.log('Body:  ', request.body)
+  console.log('---')
+  next()
+}
+app.use(requestLogger)
+
+let rewards = [
+
+]
+
+let spent = [
+
+]
+
+app.get('/', (req, res) => {
+  res.send('<h1>Fetch Rewards Coding Exercise</h1>')
+})
+
+app.get('/api/rewards', (req, res) => {
+  res.json(rewards)
+})
+
+app.get('/api/spent', (req, res) => {
+  res.json(spent)
+})
+
+app.get('/api/rewards/balance', (req, res) => {
+  const reward = Array.from(rewards.reduce(
+    (m, {payer, points}) => m.set(payer, (m.get(payer) || 0) + points), new Map
+  ), ([payer, points]) => ({payer, points}));
+  res.json(reward)
+})
+
+function bin_search(target, notes, low = 0, high = (notes.length)-1) {
+  if (low == high) {
+    if (target > notes[low]) {
+      return low+1;  
+    }
+    else {
+      return low;
+    }
+  }
+  
+  let mid = low + Math.floor((high-low)/2);
+
+  if (notes[mid] < target){
+    return bin_search(target, notes, mid+1, high);
+  }
+
+  if (notes[mid] > target){
+    return bin_search(target, notes, low, mid);
+  }
+  return mid
+}
+
+app.post('/api/rewards', (request, response) => {
+  const body = request.body
+
+  if (body.payer == null && body.points != null && body.timestamp == null && Number.isInteger(body.points)) {
+
+    const reward = {
+      points: body.points
+    }
+
+    const totalPoints = rewards.reduce((sum, reward) => sum + reward.points, 0);
+
+    if (totalPoints < reward.points){
+      response.status(400).send({ error: 'Not enough balance' })
+    }
+    else{
+      let spend = []
+      let i = 0
+      const date = new Date()
+      let balance = reward.points
+
+      while (balance > 0) {
+        if (rewards[i].points <= balance) {
+          let pointsSpent = {
+            payer: rewards[i].payer,
+            points: -rewards[i].points, 
+            timestamp: date
+          }
+        spend = spend.concat(pointsSpent)
+        balance += pointsSpent.points
+        }
+        else {
+          let pointsSpent = {
+            payer: rewards[i].payer,
+            points: -balance, 
+            timestamp: date
+          }
+        spend = spend.concat(pointsSpent)
+        balance += pointsSpent.points
+        }
+        i++;
+      }
+      rewards = rewards.concat(spend)
+      const spent = Array.from(spend.reduce(
+        (m, {payer, points}) => m.set(payer, (m.get(payer) || 0) + points), new Map
+      ), ([payer, points]) => ({payer, points}));
+      response.json(spent)
+    }
+  }
+  else if (body.payer != null && body.points != null && body.timestamp != null && Number.isInteger(body.points) && Date.parse(body.timestamp)){
+    const reward = {
+      payer: body.payer,
+      points: body.points,
+      timestamp: body.timestamp,
+    }
+    if (rewards.length == 0){ 
+    rewards = rewards.concat(reward)
+    response.json(reward)
+    }
+    else {
+      const rewardlist = rewards.map(reward => reward.timestamp)
+      let insert_index = bin_search(body.timestamp, rewardlist)
+      if (insert_index > rewards.length) {
+        rewards = rewards.concat(note)
+      }
+      else {
+      const insert = (arr, index, newItem) => [
+          ...arr.slice(0, index), 
+          newItem, 
+          ...arr.slice(index)
+      ]
+      rewards = insert(rewards, insert_index, reward)
+      }
+      response.json(rewards)
+    }
+  }
+  else{
+    response.status(400).send({ error: 'invalid input type' })
+  }
+}
+)
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+const PORT = 3001
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
